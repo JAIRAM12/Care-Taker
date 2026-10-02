@@ -1,0 +1,54 @@
+{
+  "name": "careconnect",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:api": "next dev -p 3001",
+    "dev:web": "vite --host 127.0.0.1 --port 5173 --strictPort",
+    "build": "next build && vite build",
+    "start": "node scripts/dev.mjs",
+    "start:prod": "node scripts/start.mjs",
+    "start:api": "next start -p 5001",
+    "start:web": "vite preview --host 127.0.0.1 --port 5174 --strictPort",
+    "lint": "tsc --noEmit",
+    "test": "vitest run",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:link-phone": "tsx prisma/link-phone.ts",
+    "db:bootstrap-admin": "tsx prisma/bootstrap-admin.ts"
+  },
+  "dependencies": {
+    "@ant-design/icons": "^6.3.4",
+    "@prisma/client": "^6.8.2",
+    "@tanstack/react-query": "^5.104.0",
+    "antd": "^6.6.5",
+    "bcryptjs": "^3.0.2",
+    "bootstrap": "^5.3.8",
+    "jose": "^6.0.11",
+    "lucide-react": "^0.511.0",
+    "next": "^15.3.2",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.18.4",
+    "zod": "^3.24.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.7",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^22.15.21",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "@vitejs/plugin-react": "^5.2.0",
+    "prisma": "^6.8.2",
+    "tailwindcss": "^4.1.7",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3",
+    "vite": "^7.3.6",
+    "vitest": "^3.1.4"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  }
+}

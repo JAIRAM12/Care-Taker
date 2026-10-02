@@ -1,0 +1,10 @@
+node_modules/
+.pnpm-store/
+.next/
+dist/
+.vite/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+coverage/

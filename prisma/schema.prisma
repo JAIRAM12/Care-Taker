@@ -1,0 +1,380 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CUSTOMER
+  MAID
+  MAID_MANAGER
+  ADMIN
+  DOCTOR
+  NURSE
+  DRIVER
+  COOK
+  PHARMACY
+  VENDOR
+  OTHER_SERVICE_PROVIDER
+}
+
+enum PhoneOtpPurpose {
+  LOGIN
+  REGISTER
+}
+
+enum MaidStatus {
+  PENDING
+  DOCUMENT_REVIEW
+  VERIFIED
+  ACTIVE
+  WARNING
+  SUSPENDED
+  REJECTED
+}
+
+enum RequestStatus {
+  PENDING
+  UNDER_REVIEW
+  MATCHING
+  ASSIGNED
+  ACCEPTED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum AssignmentStatus {
+  PENDING
+  MAID_ACCEPTED
+  MAID_REJECTED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  REPLACEMENT_REQUESTED
+}
+
+enum DocumentStatus {
+  PENDING
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum Priority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum ComplaintStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  CLOSED
+}
+
+model User {
+  id                    String @id @default(auto()) @map("_id") @db.ObjectId
+  email                 String           @unique
+  passwordHash          String?
+  name                  String
+  role                  Role
+  isActive              Boolean          @default(true)
+  sessionVersion        Int?              @default(0)
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+  customerProfile       CustomerProfile?
+  maidProfile           MaidProfile?
+  managerProfile        ManagerProfile?
+  adminProfile          AdminProfile?
+  notifications         Notification[]
+  activityLogs          ActivityLog[]
+  reviews               Review[]
+  complaints            Complaint[]
+  requests              ServiceRequest[]
+  assignmentsAsCustomer MaidAssignment[] @relation("CustomerAssignments")
+  assignmentsAsMaid     MaidAssignment[] @relation("MaidAssignments")
+  assignmentsAsManager  MaidAssignment[] @relation("ManagerAssignments")
+  documents             MaidDocument[]
+  passwordResetTokens   PasswordResetToken[]
+  phoneIdentity         PhoneIdentity?
+}
+
+model PhoneIdentity {
+  phone    String   @id @map("_id")
+  userId   String   @unique @db.ObjectId
+  linkedAt DateTime @default(now())
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PhoneOtpChallenge {
+  id        String         @id @default(auto()) @map("_id") @db.ObjectId
+  phone     String
+  purpose   PhoneOtpPurpose
+  expiresAt DateTime
+  usedAt    DateTime?
+  attempts  Int            @default(0)
+  createdAt DateTime       @default(now())
+
+  @@index([phone, createdAt])
+  @@index([expiresAt])
+}
+
+model CustomerProfile {
+  id            String @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String         @unique @db.ObjectId
+  phone         String?
+  address       String?
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  familyMembers FamilyMember[]
+}
+
+model MaidProfile {
+  id                 String @id @default(auto()) @map("_id") @db.ObjectId
+  userId             String             @unique @db.ObjectId
+  bio                String?
+  experienceYears    Int                @default(0)
+  skills             String[]
+  servicePreferences String[]
+  serviceArea        String?
+  status             MaidStatus         @default(PENDING)
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documents          MaidDocument[]
+  availabilities     MaidAvailability[]
+  reviews            Review[]
+}
+
+model ManagerProfile {
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  userId String  @unique @db.ObjectId
+  phone  String?
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AdminProfile {
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  userId String @unique @db.ObjectId
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model FamilyMember {
+  id         String @id @default(auto()) @map("_id") @db.ObjectId
+  customerId String @db.ObjectId
+  name       String
+  relation   String?
+  careNotes  String?
+  createdAt  DateTime         @default(now())
+  customer   CustomerProfile  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  requests   ServiceRequest[]
+}
+
+model Service {
+  id          String @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  description String?
+  isActive    Boolean          @default(true)
+  requests    ServiceRequest[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model ServiceRequest {
+  id             String @id @default(auto()) @map("_id") @db.ObjectId
+  customerId     String @db.ObjectId
+  familyMemberId String? @db.ObjectId
+  serviceId      String @db.ObjectId
+  location       String
+  preferredDate  DateTime
+  preferredTime  String
+  durationHours  Int
+  requiredSkills String[]
+  preferences    String?
+  notes          String?
+  status         RequestStatus    @default(PENDING)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  customer       User             @relation(fields: [customerId], references: [id])
+  familyMember   FamilyMember?    @relation(fields: [familyMemberId], references: [id])
+  service        Service          @relation(fields: [serviceId], references: [id])
+  assignments    MaidAssignment[]
+
+  @@index([status, createdAt])
+}
+
+model MaidAssignment {
+  id          String @id @default(auto()) @map("_id") @db.ObjectId
+  requestId   String @db.ObjectId
+  customerId  String @db.ObjectId
+  maidId      String @db.ObjectId
+  managerId   String @db.ObjectId
+  status      AssignmentStatus @default(PENDING)
+  assignedAt  DateTime         @default(now())
+  acceptedAt  DateTime?
+  startedAt   DateTime?
+  completedAt DateTime?
+  updatedAt   DateTime         @updatedAt
+  request     ServiceRequest   @relation(fields: [requestId], references: [id])
+  customer    User             @relation("CustomerAssignments", fields: [customerId], references: [id])
+  maid        User             @relation("MaidAssignments", fields: [maidId], references: [id])
+  manager     User             @relation("ManagerAssignments", fields: [managerId], references: [id])
+  tasks       Task[]
+  attendance  Attendance[]
+  reviews     Review[]
+  complaints  Complaint[]
+
+  @@index([maidId, status])
+}
+
+model MaidDocument {
+  id              String @id @default(auto()) @map("_id") @db.ObjectId
+  maidId          String @db.ObjectId
+  type            String
+  storageKey      String
+  status          DocumentStatus @default(PENDING)
+  rejectionReason String?
+  reviewedById    String? @db.ObjectId
+  reviewedAt      DateTime?
+  createdAt       DateTime       @default(now())
+  maid            MaidProfile    @relation(fields: [maidId], references: [id], onDelete: Cascade)
+  reviewer        User?          @relation(fields: [reviewedById], references: [id])
+
+  @@index([status, createdAt])
+}
+
+model Verification {
+  id         String @id @default(auto()) @map("_id") @db.ObjectId
+  maidId     String @db.ObjectId
+  reviewerId String @db.ObjectId
+  status     MaidStatus
+  notes      String?
+  createdAt  DateTime   @default(now())
+}
+
+model MaidAvailability {
+  id        String @id @default(auto()) @map("_id") @db.ObjectId
+  maidId    String @db.ObjectId
+  dayOfWeek Int
+  startTime String
+  endTime   String
+  maid      MaidProfile @relation(fields: [maidId], references: [id], onDelete: Cascade)
+
+  @@index([maidId, dayOfWeek])
+}
+
+model Task {
+  id           String @id @default(auto()) @map("_id") @db.ObjectId
+  assignmentId String @db.ObjectId
+  title        String
+  description  String?
+  dueAt        DateTime?
+  priority     Priority       @default(NORMAL)
+  status       TaskStatus     @default(PENDING)
+  completedAt  DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  assignment   MaidAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+}
+
+model Attendance {
+  id           String @id @default(auto()) @map("_id") @db.ObjectId
+  assignmentId String @db.ObjectId
+  maidId       String @db.ObjectId
+  customerId   String @db.ObjectId
+  checkIn      DateTime       @default(now())
+  checkOut     DateTime?
+  location     String?
+  assignment   MaidAssignment @relation(fields: [assignmentId], references: [id])
+
+  @@index([maidId, checkIn])
+}
+
+model Review {
+  id            String @id @default(auto()) @map("_id") @db.ObjectId
+  assignmentId  String         @unique @db.ObjectId
+  customerId    String @db.ObjectId
+  maidProfileId String @db.ObjectId
+  rating        Int
+  comment       String?
+  createdAt     DateTime       @default(now())
+  customer      User           @relation(fields: [customerId], references: [id])
+  maid          MaidProfile    @relation(fields: [maidProfileId], references: [id])
+  assignment    MaidAssignment @relation(fields: [assignmentId], references: [id])
+}
+
+model Complaint {
+  id              String @id @default(auto()) @map("_id") @db.ObjectId
+  customerId      String @db.ObjectId
+  assignmentId    String? @db.ObjectId
+  category        String
+  description     String
+  priority        Priority        @default(NORMAL)
+  status          ComplaintStatus @default(OPEN)
+  resolutionNotes String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  customer        User            @relation(fields: [customerId], references: [id])
+  assignment      MaidAssignment? @relation(fields: [assignmentId], references: [id])
+
+  @@index([status, createdAt])
+}
+
+model Notification {
+  id        String @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String @db.ObjectId
+  title     String
+  message   String
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+}
+
+model ActivityLog {
+  id         String @id @default(auto()) @map("_id") @db.ObjectId
+  actorId    String @db.ObjectId
+  action     String
+  entityType String
+  entityId   String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  actor      User     @relation(fields: [actorId], references: [id])
+
+  @@index([entityType, createdAt])
+}
+
+model RateLimitBucket {
+  id          String @id @default(auto()) @map("_id") @db.ObjectId
+  key         String
+  windowStart DateTime
+  hits        Int      @default(1)
+
+  @@unique([key, windowStart])
+  @@index([windowStart])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, usedAt])
+  @@index([expiresAt])
+}
