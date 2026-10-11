@@ -69,7 +69,8 @@ async function main() {
       if (existingPhone.phone !== previousDemoPhones[user.email]) {
         throw new Error("Demo user " + user.email + " already has a non-demo phone linked; refusing to replace it.");
       }
-      await db.phoneIdentity.update({ where: { userId: user.id }, data: { phone } });
+      await db.phoneIdentity.delete({ where: { userId: user.id } });
+      await db.phoneIdentity.create({ data: { phone, userId: user.id } });
     } else if (!existingPhone) {
       await db.phoneIdentity.create({ data: { phone, userId: user.id } });
     }
