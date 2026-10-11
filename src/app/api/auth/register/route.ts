@@ -2,10 +2,12 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { createSession, dashboardForRole } from "@/lib/auth";
-import { PhoneOtpError, normalizePhone, verifyPhoneOtp } from "@/lib/phone-otp";
+import { PhoneOtpError, verifyPhoneOtp } from "@/lib/phone-otp";
+import { normalizeIndianPhone } from "@/lib/india";
+import { accountDetailsSchema, formatIndiaAddress } from "@/lib/account-profile";
 import { resolvePhoneAccount } from "@/lib/phone-identity";
 
-const schema = z.object({
+const schema = accountDetailsSchema.extend({
   name: z.string().trim().min(2).max(80),
   email: z.string().trim().email().max(254),
   phone: z.string().trim().min(8).max(24),
@@ -16,9 +18,9 @@ const schema = z.object({
 export async function POST(request: Request) {
   try {
     const parsed = schema.safeParse(await request.json());
-    if (!parsed.success) return NextResponse.json({ error: "Check your name, email, phone number, and six-digit code." }, { status: 400 });
-    const phone = normalizePhone(parsed.data.phone);
-    if (!phone) return NextResponse.json({ error: "Enter a valid international phone number." }, { status: 400 });
+    if (!parsed.success) return NextResponse.json({ error: "Check your contact, address, industry, PIN code, and verification details." }, { status: 400 });
+    const phone = normalizeIndianPhone(parsed.data.phone);
+    if (!phone) return NextResponse.json({ error: "Enter a valid 10-digit Indian mobile number." }, { status: 400 });
     const verified = await verifyPhoneOtp(request, phone, parsed.data.challengeId, parsed.data.code, "REGISTER");
     if (!verified) return NextResponse.json({ error: "That code is invalid or expired. Request a new code and try again." }, { status: 401 });
 
@@ -36,8 +38,13 @@ export async function POST(request: Request) {
         email,
         passwordHash: null,
         role: "CUSTOMER",
+        addressLine: parsed.data.addressLine,
+        city: parsed.data.city,
+        state: parsed.data.state,
+        pincode: parsed.data.pincode,
+        industry: parsed.data.industry,
         phoneIdentity: { create: { phone } },
-        customerProfile: { create: { phone } },
+        customerProfile: { create: { phone, address: formatIndiaAddress(parsed.data) } },
       },
       select: { id: true, name: true, email: true, role: true },
     });

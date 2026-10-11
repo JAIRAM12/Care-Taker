@@ -21,9 +21,11 @@ For local OTP sign-in, keep OTP_MODE=development in .env. The app displays the d
 
 ## Login and account roles
 
-- Customers create an account with their name, email, and phone number, then verify the phone using a one-time code.
+- Customers create an account with their name, email, Indian mobile number, address, and industry, then verify the phone using a one-time code. The +91 prefix is added automatically to a 10-digit mobile number.
 - Caregivers, managers, and admins do not have public registration. An agency administrator provisions them and links their phone number.
 - All roles use the same phone OTP sign-in page. The API chooses the dashboard using the account role stored in MongoDB; a client cannot select or elevate its role.
+- The address form requires a street/locality, city, Indian state or union territory, and six-digit PIN code. It validates the address fields and PIN format locally; it does not confirm that a street address is physically deliverable.
+- Accounts created before address and industry became required are prompted to complete those details when they next sign in.
 - Forgot-password screens return to phone sign-in because OTP replaces password sign-in.
 
 ### Create the first administrator
@@ -32,9 +34,14 @@ Use a trusted local terminal with the app stopped and the intended DATABASE_URL 
 
     $env:ADMIN_NAME = "CareConnect Administrator"
     $env:ADMIN_EMAIL = Read-Host "Administrator email"
-    $env:ADMIN_PHONE = Read-Host "Administrator phone in E.164 format, e.g. +14155550100"
+    $env:ADMIN_PHONE = Read-Host "Administrator's 10-digit Indian mobile number"
+    $env:ADMIN_ADDRESS_LINE = Read-Host "House/building, street, and locality"
+    $env:ADMIN_CITY = Read-Host "City or town"
+    $env:ADMIN_STATE = Read-Host "State or union territory"
+    $env:ADMIN_PINCODE = Read-Host "Six-digit Indian PIN code"
+    $env:ADMIN_INDUSTRY = Read-Host "Industry or field of work"
     npm run db:bootstrap-admin
-    Remove-Item Env:ADMIN_NAME, Env:ADMIN_EMAIL, Env:ADMIN_PHONE
+    Remove-Item Env:ADMIN_NAME, Env:ADMIN_EMAIL, Env:ADMIN_PHONE, Env:ADMIN_ADDRESS_LINE, Env:ADMIN_CITY, Env:ADMIN_STATE, Env:ADMIN_PINCODE, Env:ADMIN_INDUSTRY
 
 The command creates only the first admin and refuses if one already exists. Sign in using the phone number and OTP.
 
@@ -43,7 +50,7 @@ The command creates only the first admin and refuses if one already exists. Sign
 For an account created before phone OTP was added, run this in PowerShell with the same MongoDB database:
 
     $env:LINK_USER_EMAIL = Read-Host "Existing account email"
-    $env:LINK_USER_PHONE = Read-Host "Phone in E.164 format, e.g. +14155550100"
+    $env:LINK_USER_PHONE = Read-Host "10-digit Indian mobile number (or the existing full international number)"
     npm run db:link-phone
     Remove-Item Env:LINK_USER_EMAIL, Env:LINK_USER_PHONE
 

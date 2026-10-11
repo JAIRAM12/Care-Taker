@@ -1,22 +1,24 @@
 import { loadEnvConfig } from "@next/env";
 import { PrismaClient } from "@prisma/client";
+import { normalizePhone } from "../src/lib/india";
 
 loadEnvConfig(process.cwd());
 const db = new PrismaClient();
 
 async function main() {
   const email = process.env.LINK_USER_EMAIL?.trim().toLowerCase();
-  const phone = process.env.LINK_USER_PHONE?.replace(/[\s().-]/g, "");
+  const phoneInput = process.env.LINK_USER_PHONE?.trim();
+  const phone = phoneInput ? normalizePhone(phoneInput) : null;
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     throw new Error("Set LINK_USER_EMAIL to the existing account email.");
   }
-  if (!phone || !/^\+[1-9]\d{7,14}$/.test(phone)) {
-    throw new Error("Set LINK_USER_PHONE in international E.164 format, such as +14155550100.");
+  if (!phone) {
+    throw new Error("Set LINK_USER_PHONE to a valid 10-digit Indian mobile number, or a full international number for an existing account.");
   }
 
   const user = await db.user.findUnique({
     where: { email },
-    select: { id: true, name: true, role: true },
+    select: { id: true, name: true, email: true, role: true },
   });
   if (!user) throw new Error("No account was found with that email.");
 

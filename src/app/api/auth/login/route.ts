@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createSession, dashboardForRole } from "@/lib/auth";
 import { PhoneOtpError, normalizePhone, requestPhoneOtp, verifyPhoneOtp } from "@/lib/phone-otp";
+import { normalizeIndianPhone } from "@/lib/india";
 import { resolvePhoneAccount } from "@/lib/phone-identity";
 
 const phoneSchema = z.string().trim().min(8).max(24);
@@ -22,8 +23,12 @@ export async function POST(request: Request) {
     const body = await request.json();
     const requestParsed = requestSchema.safeParse(body);
     if (requestParsed.success) {
-      const phone = normalizePhone(requestParsed.data.phone);
-      if (!phone) return NextResponse.json({ error: "Enter a valid international phone number, including the + and country code." }, { status: 400 });
+      const phone = requestParsed.data.purpose === "REGISTER"
+        ? normalizeIndianPhone(requestParsed.data.phone)
+        : normalizePhone(requestParsed.data.phone);
+      if (!phone) return NextResponse.json({ error: requestParsed.data.purpose === "REGISTER"
+        ? "Enter a valid 10-digit Indian mobile number. The +91 prefix is added automatically."
+        : "Enter a valid 10-digit Indian mobile number." }, { status: 400 });
       const result = await requestPhoneOtp(request, phone, requestParsed.data.purpose);
       return NextResponse.json({ message: "If this number can receive messages, a sign-in code is on its way.", ...result });
     }

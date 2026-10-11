@@ -2,6 +2,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import type { PhoneOtpPurpose } from "@prisma/client";
 import { db } from "@/lib/db";
 import { enforceRateLimit, enforceRateLimitKey } from "@/lib/rate-limit";
+import { normalizePhone as normalizePhoneValue } from "@/lib/india";
 
 const tenMinutes = 10 * 60 * 1000;
 const fifteenMinutes = 15 * 60 * 1000;
@@ -14,8 +15,7 @@ export class PhoneOtpError extends Error {
 }
 
 export function normalizePhone(value: string) {
-  const phone = value.replace(/[\s().-]/g, "");
-  return /^\+[1-9]\d{7,14}$/.test(phone) ? phone : null;
+  return normalizePhoneValue(value);
 }
 
 function developmentCode() {

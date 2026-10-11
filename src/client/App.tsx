@@ -21,6 +21,7 @@ import {
   RequestsPage,
   ResetPasswordPage,
   JobsPage,
+  ProfileSetupPage,
 } from "./pages";
 
 const menus = {
@@ -51,7 +52,16 @@ function RequireSignedIn() {
   const { user, loading } = useAuth();
   if (loading) return <LoadingScreen />;
   if (!user) return <Navigate to="/login" replace />;
+  if (!user.profileComplete) return <Navigate to="/profile/setup" replace />;
   return <WorkspaceShell />;
+}
+
+function RequireProfileSetup() {
+  const { user, loading } = useAuth();
+  if (loading) return <LoadingScreen />;
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.profileComplete) return <Navigate to={dashboardPath(user.role)} replace />;
+  return <ProfileSetupPage />;
 }
 
 function RequireRole({ role }: { role: "CUSTOMER" | "MAID" | "MAID_MANAGER" | "ADMIN" }) {
@@ -113,6 +123,7 @@ export function App() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/profile/setup" element={<RequireProfileSetup />} />
         <Route element={<RequireSignedIn />}>
           <Route element={<RequireRole role="CUSTOMER" />}>
             <Route path="/customer/dashboard" element={<DashboardPage />} />

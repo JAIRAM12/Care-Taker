@@ -34,8 +34,24 @@ import {
 } from "@ant-design/icons";
 import { api, dashboardPath, post, type SessionUser } from "./api";
 import { useAuth } from "./auth";
+import { INDIA_STATES, normalizeIndianPhone, normalizePhone } from "../lib/india";
+import type { AccountDetails } from "../lib/account-profile";
 
 const { Title, Text, Paragraph } = Typography;
+
+function AccountDetailsFields() {
+  return <>
+    <Form.Item label="House / building, street, and locality" name="addressLine" rules={[{ required: true }, { min: 8, max: 180 }, { pattern: /[\p{L}]/u, message: "Enter a street or locality name." }]}>
+      <Input size="large" autoComplete="street-address" placeholder="Flat 4, 12 Market Road, Indiranagar" />
+    </Form.Item>
+    <Row gutter={[12, 0]}>
+      <Col xs={24} md={8}><Form.Item label="City / town" name="city" rules={[{ required: true }, { min: 2, max: 80 }, { pattern: /^[\p{L}\p{M} .'-]+$/u, message: "Enter a valid city or town." }]}><Input size="large" autoComplete="address-level2" /></Form.Item></Col>
+      <Col xs={24} md={8}><Form.Item label="State / union territory" name="state" rules={[{ required: true }]}><Select size="large" showSearch optionFilterProp="label" options={INDIA_STATES.map((state) => ({ value: state, label: state }))} /></Form.Item></Col>
+      <Col xs={24} md={8}><Form.Item label="PIN code" name="pincode" rules={[{ required: true }, { pattern: /^[1-9]\d{5}$/, message: "Enter a six-digit Indian PIN code." }]}><Input size="large" inputMode="numeric" autoComplete="postal-code" maxLength={6} placeholder="560001" /></Form.Item></Col>
+      <Col span={24}><Form.Item label="Industry / field of work" name="industry" rules={[{ required: true }, { min: 2, max: 100 }, { pattern: /[\p{L}]/u, message: "Enter your industry or field of work." }]}><Input size="large" placeholder="Healthcare, education, information technology" /></Form.Item></Col>
+    </Row>
+  </>;
+}
 
 function Brand({ light = false }: { light?: boolean }) {
   return <span className={`brand${light ? " brand-light" : ""}`}><span className="brand-icon"><HeartOutlined /></span>CareConnect</span>;
@@ -105,7 +121,7 @@ export function LoginPage() {
       const result = await post<{ challengeId: string; developmentMode?: boolean; developmentCode?: string }>("/api/auth/login", {
         action: "request", phone: values.phone, purpose: "LOGIN",
       });
-      setPhone(values.phone.trim());
+      setPhone(normalizePhone(values.phone) ?? values.phone.trim());
       setChallengeId(result.challengeId);
       setDevelopmentMode(Boolean(result.developmentMode));
       setDevelopmentCode(result.developmentCode || "");
@@ -128,10 +144,13 @@ export function LoginPage() {
     } finally { setBusy(false); }
   }
 
-  return <AuthFrame title="Sign in with your phone" subtitle="We’ll text a one-time code to verify it’s you.">
+  return <AuthFrame title="Sign in with your phone" subtitle="Enter your 10-digit Indian mobile number. We add +91 automatically.">
     {stage === "phone" ? <Form layout="vertical" onFinish={sendCode} requiredMark={false}>
-      <Form.Item label="Mobile number" name="phone" rules={[{ required: true }, { pattern: /^\+[1-9]\d{7,14}$/, message: "Include + and your country code, for example +91." }]}>
-        <Input size="large" autoComplete="tel" inputMode="tel" placeholder="+919876543210" />
+      <Form.Item label="Mobile number" name="phone" extra="Enter 10 digits; +91 is added automatically. Older international accounts may enter the full number." rules={[{ required: true }, { validator: async (_, value: string) => {
+        if (!value || /^[6-9]\d{9}$/.test(value.trim()) || /^\+[1-9]\d{7,14}$/.test(value.trim())) return;
+        throw new Error("Enter a 10-digit Indian mobile number.");
+      } }]}>
+        <Input size="large" autoComplete="tel" inputMode="tel" placeholder="9876543210" />
       </Form.Item>
       {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />}
       <Button htmlType="submit" type="primary" size="large" block loading={busy}>Send sign-in code</Button>
@@ -158,20 +177,20 @@ export function RegisterPage() {
   const navigate = useNavigate();
   const { refresh } = useAuth();
   const [stage, setStage] = useState<"profile" | "code">("profile");
-  const [profile, setProfile] = useState<{ name: string; email: string; phone: string } | null>(null);
+  const [profile, setProfile] = useState<{ name: string; email: string; phone: string } & AccountDetails | null>(null);
   const [challengeId, setChallengeId] = useState("");
   const [developmentMode, setDevelopmentMode] = useState(false);
   const [developmentCode, setDevelopmentCode] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  async function sendCode(values: { name: string; email: string; phone: string }) {
+  async function sendCode(values: { name: string; email: string; phone: string } & AccountDetails) {
     setBusy(true); setError("");
     try {
       const result = await post<{ challengeId: string; developmentMode?: boolean; developmentCode?: string }>("/api/auth/login", {
         action: "request", phone: values.phone, purpose: "REGISTER",
       });
-      setProfile({ name: values.name.trim(), email: values.email.trim(), phone: values.phone.trim() });
+      setProfile({ ...values, name: values.name.trim(), email: values.email.trim(), phone: normalizeIndianPhone(values.phone) ?? values.phone.trim() });
       setChallengeId(result.challengeId);
       setDevelopmentMode(Boolean(result.developmentMode));
       setDevelopmentCode(result.developmentCode || "");
@@ -195,11 +214,12 @@ export function RegisterPage() {
     } finally { setBusy(false); }
   }
 
-  return <AuthFrame title="Create your customer account" subtitle="Verify your mobile number to get started with CareConnect.">
+  return <AuthFrame title="Create your customer account" subtitle="Add your address and industry details. Enter your 10-digit Indian mobile number; +91 is added automatically.">
     {stage === "profile" ? <Form layout="vertical" onFinish={sendCode} requiredMark={false}>
       <Form.Item label="Full name" name="name" rules={[{ required: true }, { min: 2, max: 80 }]}><Input size="large" autoComplete="name" /></Form.Item>
       <Form.Item label="Email address" name="email" rules={[{ required: true }, { type: "email", max: 254 }]}><Input size="large" autoComplete="email" /></Form.Item>
-      <Form.Item label="Mobile number" name="phone" rules={[{ required: true }, { pattern: /^\+[1-9]\d{7,14}$/, message: "Enter the number without spaces, with + and country code, for example +919876543210." }]}><Input size="large" autoComplete="tel" inputMode="tel" placeholder="+919876543210" /></Form.Item>
+      <Form.Item label="Mobile number" name="phone" rules={[{ required: true }, { pattern: /^[6-9]\d{9}$/, message: "Enter a valid 10-digit Indian mobile number." }]}><Input size="large" autoComplete="tel-national" inputMode="numeric" maxLength={10} addonBefore="+91" placeholder="9876543210" /></Form.Item>
+      <AccountDetailsFields />
       {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />}
       <Button htmlType="submit" type="primary" size="large" block loading={busy}>Send verification code</Button>
     </Form> : <>
@@ -215,6 +235,35 @@ export function RegisterPage() {
     </>}
     <p className="auth-tail">Already registered? <Link to="/login">Sign in with your phone</Link></p>
     <Paragraph className="muted" style={{ marginBottom: 0 }}>Caregiver and agency accounts are created or linked by the agency; they cannot be created from customer sign-up.</Paragraph>
+  </AuthFrame>;
+}
+
+export function ProfileSetupPage() {
+  const navigate = useNavigate();
+  const { user, refresh } = useAuth();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function saveDetails(values: AccountDetails) {
+    setBusy(true);
+    setError("");
+    try {
+      await api("/api/auth/profile", { method: "PATCH", body: JSON.stringify(values) });
+      await refresh();
+      navigate(dashboardPath(user?.role ?? "CUSTOMER"), { replace: true });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not save your account details.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return <AuthFrame title="Complete your account profile" subtitle="Add your Indian address and work industry to continue.">
+    <Form layout="vertical" onFinish={saveDetails} requiredMark={false}>
+      <AccountDetailsFields />
+      {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />}
+      <Button htmlType="submit" type="primary" size="large" block loading={busy}>Save and continue</Button>
+    </Form>
   </AuthFrame>;
 }
 
@@ -396,12 +445,17 @@ type CaregiverRecord = {
   id: string;
   name: string;
   email: string;
+  addressLine: string | null;
+  city: string | null;
+  state: string | null;
+  pincode: string | null;
+  industry: string | null;
   isActive: boolean;
   createdAt: string;
   maidProfile: { status: string; experienceYears: number; serviceArea: string | null; skills: string[] } | null;
 };
 
-type CaregiverFormValues = { name: string; email: string; phone: string; serviceArea?: string; skills?: string };
+type CaregiverFormValues = { name: string; email: string; phone: string; serviceArea?: string; skills?: string } & AccountDetails;
 
 export function CaregiversPage() {
   const queryClient = useQueryClient();
@@ -449,10 +503,11 @@ export function CaregiversPage() {
         <Row gutter={[12, 0]}>
           <Col xs={24} md={12}><Form.Item label="Full name" name="name" rules={[{ required: true, min: 2, max: 80 }]}><Input autoComplete="name" /></Form.Item></Col>
           <Col xs={24} md={12}><Form.Item label="Email address" name="email" rules={[{ required: true }, { type: "email", max: 254 }]}><Input autoComplete="email" /></Form.Item></Col>
-          <Col xs={24} md={12}><Form.Item label="Mobile number" name="phone" extra="Include the + and country code, without spaces." rules={[{ required: true }, { pattern: /^\+[1-9]\d{7,14}$/, message: "Use international format such as +919876543210." }]}><Input autoComplete="tel" placeholder="+919876543210" /></Form.Item></Col>
+          <Col xs={24} md={12}><Form.Item label="Mobile number" name="phone" extra="Enter 10 digits. The +91 country prefix is added automatically." rules={[{ required: true }, { pattern: /^[6-9]\d{9}$/, message: "Enter a valid 10-digit Indian mobile number." }]}><Input autoComplete="tel-national" inputMode="numeric" maxLength={10} addonBefore="+91" placeholder="9876543210" /></Form.Item></Col>
           <Col xs={24} md={12}><Form.Item label="Service area" name="serviceArea"><Input maxLength={160} /></Form.Item></Col>
           <Col span={24}><Form.Item label="Skills" name="skills" extra="Separate skills with commas."><Input maxLength={1000} placeholder="Companionship, meal preparation" /></Form.Item></Col>
         </Row>
+        <AccountDetailsFields />
         <Button type="primary" htmlType="submit" loading={saving}>Create caregiver</Button>
       </Form>
     </Card>
@@ -460,7 +515,7 @@ export function CaregiversPage() {
       {isPending ? <Skeleton active /> : isError ? <Alert type="error" showIcon message={error instanceof Error ? error.message : "Could not load caregivers."} description={<Button type="link" onClick={() => void refetch()}>Retry</Button>} /> : caregivers.length === 0 ? <Empty description="No caregiver accounts yet." /> : <List dataSource={caregivers} renderItem={(caregiver) => {
         const status = caregiver.isActive ? caregiver.maidProfile?.status ?? "PENDING" : "DEACTIVATED";
         const statusColor = !caregiver.isActive ? "default" : status === "ACTIVE" || status === "VERIFIED" ? "green" : "gold";
-        const details = [caregiver.maidProfile?.serviceArea, ...(caregiver.maidProfile?.skills ?? [])].filter(Boolean).join(" · ");
+        const details = [caregiver.addressLine, caregiver.city, caregiver.state, caregiver.pincode, caregiver.industry, caregiver.maidProfile?.serviceArea, ...(caregiver.maidProfile?.skills ?? [])].filter(Boolean).join(" · ");
         return <List.Item actions={caregiver.isActive ? [<Popconfirm key="deactivate" title="Deactivate this caregiver?" description="They will lose sign-in access. Assignment and audit history will remain." okText="Deactivate" cancelText="Cancel" okButtonProps={{ danger: true }} onConfirm={() => void deactivateCaregiver(caregiver.id)}><Button size="small" danger loading={deactivatingId === caregiver.id}>Deactivate</Button></Popconfirm>] : [<Tag key="inactive">Access disabled</Tag>]}>
           <List.Item.Meta title={<Space wrap>{caregiver.name}<Tag color={statusColor}>{status.replaceAll("_", " ")}</Tag></Space>} description={<>{caregiver.email}{details ? ` · ${details}` : ""} · Added {new Date(caregiver.createdAt).toLocaleDateString()}</>} />
         </List.Item>;

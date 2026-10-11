@@ -1,5 +1,5 @@
 export type Role = "CUSTOMER" | "MAID" | "MAID_MANAGER" | "ADMIN" | string;
-export type SessionUser = { id: string; name: string; email: string; role: Role };
+export type SessionUser = { id: string; name: string; email: string; role: Role; profileComplete: boolean };
 
 export async function api<T = Record<string, unknown>>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(path, {

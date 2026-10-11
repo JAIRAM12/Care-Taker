@@ -3,11 +3,11 @@ import { PrismaClient, Role } from "@prisma/client";
 
 loadEnvConfig(process.cwd());
 const db = new PrismaClient();
-const users: Array<{ email: string; name: string; role: Role; phone: string }> = [
-  { email: "admin@careconnect.local", name: "CareConnect Admin", role: "ADMIN", phone: "+15555550101" },
-  { email: "manager@careconnect.local", name: "Care Manager", role: "MAID_MANAGER", phone: "+15555550102" },
-  { email: "customer@careconnect.local", name: "Sample Customer", role: "CUSTOMER", phone: "+15555550103" },
-  { email: "caregiver@careconnect.local", name: "Sample Caregiver", role: "MAID", phone: "+15555550104" },
+const users: Array<{ email: string; name: string; role: Role; phone: string; addressLine: string; city: string; state: string; pincode: string; industry: string }> = [
+  { email: "admin@careconnect.local", name: "CareConnect Admin", role: "ADMIN", phone: "+15555550101", addressLine: "1 Sample Street", city: "Bengaluru", state: "Karnataka", pincode: "560001", industry: "Care services" },
+  { email: "manager@careconnect.local", name: "Care Manager", role: "MAID_MANAGER", phone: "+15555550102", addressLine: "2 Sample Street", city: "Bengaluru", state: "Karnataka", pincode: "560001", industry: "Care services" },
+  { email: "customer@careconnect.local", name: "Sample Customer", role: "CUSTOMER", phone: "+15555550103", addressLine: "3 Sample Street", city: "Bengaluru", state: "Karnataka", pincode: "560001", industry: "Education" },
+  { email: "caregiver@careconnect.local", name: "Sample Caregiver", role: "MAID", phone: "+15555550104", addressLine: "4 Sample Street", city: "Bengaluru", state: "Karnataka", pincode: "560001", industry: "Care services" },
 ];
 
 async function main() {
@@ -15,7 +15,17 @@ async function main() {
     const { phone, ...userFields } = userData;
     const user = await db.user.upsert({
       where: { email: userData.email },
-      update: { name: userFields.name, role: userFields.role, passwordHash: null, isActive: true },
+      update: {
+        name: userFields.name,
+        role: userFields.role,
+        addressLine: userFields.addressLine,
+        city: userFields.city,
+        state: userFields.state,
+        pincode: userFields.pincode,
+        industry: userFields.industry,
+        passwordHash: null,
+        isActive: true,
+      },
       create: {
         ...userFields,
         passwordHash: null,

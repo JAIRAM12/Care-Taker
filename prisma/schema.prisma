@@ -91,6 +91,11 @@ model User {
   email                 String           @unique
   passwordHash          String?
   name                  String
+  addressLine           String?
+  city                  String?
+  state                 String?
+  pincode               String?
+  industry              String?
   role                  Role
   isActive              Boolean          @default(true)
   sessionVersion        Int?              @default(0)

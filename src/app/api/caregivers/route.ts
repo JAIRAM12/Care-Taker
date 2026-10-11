@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
-import { normalizePhone } from "@/lib/phone-otp";
+import { normalizeIndianPhone } from "@/lib/india";
+import { accountDetailsSchema } from "@/lib/account-profile";
 
-const schema = z.object({
+const schema = accountDetailsSchema.extend({
   name: z.string().trim().min(2).max(80),
   email: z.string().trim().email().max(254),
   phone: z.string().trim().min(8).max(24),
@@ -32,6 +33,11 @@ export async function GET() {
       id: true,
       name: true,
       email: true,
+      addressLine: true,
+      city: true,
+      state: true,
+      pincode: true,
+      industry: true,
       isActive: true,
       createdAt: true,
       maidProfile: { select: { status: true, experienceYears: true, serviceArea: true, skills: true } },
@@ -46,10 +52,10 @@ export async function POST(request: Request) {
   if (authorization.error) return authorization.error;
 
   const parsed = schema.safeParse(await request.json());
-  if (!parsed.success) return NextResponse.json({ error: "Check the caregiver details and international phone number." }, { status: 400 });
+  if (!parsed.success) return NextResponse.json({ error: "Check the caregiver's contact, address, industry, and PIN code." }, { status: 400 });
 
-  const phone = normalizePhone(parsed.data.phone);
-  if (!phone) return NextResponse.json({ error: "Enter a valid international phone number, including the + and country code." }, { status: 400 });
+  const phone = normalizeIndianPhone(parsed.data.phone);
+  if (!phone) return NextResponse.json({ error: "Enter a valid 10-digit Indian mobile number." }, { status: 400 });
   const email = parsed.data.email.toLowerCase();
   if (await db.user.findUnique({ where: { email } })) {
     return NextResponse.json({ error: "An account with this email already exists." }, { status: 409 });
@@ -67,6 +73,11 @@ export async function POST(request: Request) {
           email,
           passwordHash: null,
           role: "MAID",
+          addressLine: parsed.data.addressLine,
+          city: parsed.data.city,
+          state: parsed.data.state,
+          pincode: parsed.data.pincode,
+          industry: parsed.data.industry,
           phoneIdentity: { create: { phone } },
           maidProfile: {
             create: {
