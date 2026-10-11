@@ -4,13 +4,24 @@ import { PrismaClient, Role } from "@prisma/client";
 loadEnvConfig(process.cwd());
 const db = new PrismaClient();
 const users: Array<{ email: string; name: string; role: Role; phone: string; addressLine: string; city: string; state: string; pincode: string; industry: string }> = [
-  { email: "admin@careconnect.local", name: "CareConnect Admin", role: "ADMIN", phone: "+15555550101", addressLine: "1 Sample Street", city: "Bengaluru", state: "Karnataka", pincode: "560001", industry: "Care services" },
-  { email: "manager@careconnect.local", name: "Care Manager", role: "MAID_MANAGER", phone: "+15555550102", addressLine: "2 Sample Street", city: "Bengaluru", state: "Karnataka", pincode: "560001", industry: "Care services" },
-  { email: "customer@careconnect.local", name: "Sample Customer", role: "CUSTOMER", phone: "+15555550103", addressLine: "3 Sample Street", city: "Bengaluru", state: "Karnataka", pincode: "560001", industry: "Education" },
-  { email: "caregiver@careconnect.local", name: "Sample Caregiver", role: "MAID", phone: "+15555550104", addressLine: "4 Sample Street", city: "Bengaluru", state: "Karnataka", pincode: "560001", industry: "Care services" },
+  { email: "admin@careconnect.local", name: "CareConnect Admin", role: "ADMIN", phone: "+919000001101", addressLine: "1 Sample Street", city: "Bengaluru", state: "Karnataka", pincode: "560001", industry: "Care services" },
+  { email: "manager@careconnect.local", name: "Care Manager", role: "MAID_MANAGER", phone: "+919000001102", addressLine: "2 Sample Street", city: "Bengaluru", state: "Karnataka", pincode: "560001", industry: "Care services" },
+  { email: "customer@careconnect.local", name: "Sample Customer", role: "CUSTOMER", phone: "+919000001103", addressLine: "3 Sample Street", city: "Bengaluru", state: "Karnataka", pincode: "560001", industry: "Education" },
+  { email: "caregiver@careconnect.local", name: "Sample Caregiver", role: "MAID", phone: "+919000001104", addressLine: "4 Sample Street", city: "Bengaluru", state: "Karnataka", pincode: "560001", industry: "Care services" },
 ];
 
+const previousDemoPhones: Record<string, string> = {
+  "admin@careconnect.local": "+15555550101",
+  "manager@careconnect.local": "+15555550102",
+  "customer@careconnect.local": "+15555550103",
+  "caregiver@careconnect.local": "+15555550104",
+};
+
 async function main() {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Refusing to create development demo accounts in production.");
+  }
+
   for (const userData of users) {
     const { phone, ...userFields } = userData;
     const user = await db.user.upsert({
@@ -47,11 +58,24 @@ async function main() {
       },
     });
 
-    const existingPhone = await db.phoneIdentity.findUnique({ where: { userId: user.id } });
-    if (existingPhone && existingPhone.phone !== phone) {
-      throw new Error("Demo user " + user.email + " already has another phone linked; refusing to replace it.");
+    const [existingPhone, newPhoneOwner] = await Promise.all([
+      db.phoneIdentity.findUnique({ where: { userId: user.id } }),
+      db.phoneIdentity.findUnique({ where: { phone }, select: { userId: true } }),
+    ]);
+    if (newPhoneOwner && newPhoneOwner.userId !== user.id) {
+      throw new Error("Demo phone " + phone + " is already linked to a different account.");
     }
-    if (!existingPhone) await db.phoneIdentity.create({ data: { phone, userId: user.id } });
+    if (existingPhone && existingPhone.phone !== phone) {
+      if (existingPhone.phone !== previousDemoPhones[user.email]) {
+        throw new Error("Demo user " + user.email + " already has a non-demo phone linked; refusing to replace it.");
+      }
+      await db.phoneIdentity.update({ where: { userId: user.id }, data: { phone } });
+    } else if (!existingPhone) {
+      await db.phoneIdentity.create({ data: { phone, userId: user.id } });
+    }
+    if (userFields.role === "CUSTOMER") {
+      await db.customerProfile.updateMany({ where: { userId: user.id }, data: { phone } });
+    }
   }
 
   for (const [name, description] of [

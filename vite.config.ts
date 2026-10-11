@@ -1,8 +1,10 @@
+
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 export default defineConfig(({ mode }) => {
   const apiPort = mode === "development" ? 3001 : 5001;
+
   const proxy = {
     "/api": {
       target: `http://127.0.0.1:${apiPort}`,
@@ -16,7 +18,13 @@ export default defineConfig(({ mode }) => {
       proxy,
       watch: { ignored: ["**/.next/**"] },
     },
-    preview: { proxy },
-    build: { outDir: "dist", emptyOutDir: true },
+    preview: {
+      proxy,
+      allowedHosts: ["care-taker-2v7i.onrender.com"],
+    },
+    build: {
+      outDir: "dist",
+      emptyOutDir: true,
+    },
   };
 });

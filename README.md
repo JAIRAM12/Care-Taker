@@ -58,7 +58,16 @@ This does not change the account's role. It refuses to take a phone number alrea
 
 ### Optional local demo accounts
 
-Run npm run db:seed after db:push. It creates demo admin, manager, customer, and caregiver accounts with fake +1 phone numbers ending in 0101, 0102, 0103, and 0104. In local development, use the displayed OTP (default 424242). These fixture accounts and numbers are for development only.
+Run npm run db:seed after db:push. It creates demo admin, manager, customer, and caregiver accounts with Indian-format development numbers:
+
+| Role | Sign-in phone |
+| --- | --- |
+| Admin | +91 9000001101 |
+| Manager | +91 9000001102 |
+| Customer | +91 9000001103 |
+| Caregiver | +91 9000001104 |
+
+Enter the 10 digits without +91 or the complete number. In local development, use the displayed OTP (default 424242). These placeholder numbers and accounts are for development only; the seed script refuses to run in production.
 
 ## Configure SMS for production
 
